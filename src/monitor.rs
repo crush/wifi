@@ -84,12 +84,12 @@ pub fn signal() {
 pub fn speed() {
     let start = std::time::Instant::now();
     let output = Command::new("curl")
-        .args(["-s", "-o", "/dev/null", "-w", "%{size_download}", "http://speedtest.tele2.net/1MB.zip"])
+        .args(["-s", "-o", "/dev/null", "-w", "%{size_download}", "https://speed.cloudflare.com/__down?bytes=104857600"])
         .output()
         .expect("failed");
 
     let elapsed = start.elapsed().as_secs_f64();
     let bytes: f64 = String::from_utf8_lossy(&output.stdout).parse().unwrap_or(0.0);
     let mbps = (bytes * 8.0) / (elapsed * 1_000_000.0);
-    println!("{:.1} Mbps", mbps);
+    println!("{:.0} Mbps", mbps);
 }
