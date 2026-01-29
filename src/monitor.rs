@@ -1,24 +1,49 @@
 use crate::style;
-use crossterm::{
-    cursor,
-    event::{self, Event, KeyCode},
-    execute,
-    style::{Color, Print, SetForegroundColor, ResetColor},
-    terminal::{self, ClearType},
-};
-use std::io::{self, Write};
+use crossterm::{execute, style::{Color, Print, SetForegroundColor, ResetColor}};
+use std::io;
 use std::process::Command;
 
 pub fn signal() {
-    terminal::enable_raw_mode().unwrap();
+    let (ssid, rssi, noise) = get_signal_info();
+
+    if ssid.is_empty() {
+        style::dim("not connected\n");
+        return;
+    }
+
+    let snr = rssi - noise;
+    let bars = match rssi {
+        r if r >= -50 => "████",
+        r if r >= -60 => "███░",
+        r if r >= -70 => "██░░",
+        r if r >= -80 => "█░░░",
+        _ => "░░░░",
+    };
+
     let mut stdout = io::stdout();
+    let color = match rssi {
+        r if r >= -50 => Color::Green,
+        r if r >= -70 => Color::Yellow,
+        _ => Color::Red,
+    };
+    execute!(
+        stdout,
+        SetForegroundColor(Color::Cyan),
+        Print(format!("{}\n", ssid)),
+        SetForegroundColor(color),
+        Print(format!("{} ", bars)),
+        SetForegroundColor(Color::DarkGrey),
+        Print(format!("{}dBm  snr {}dB\n", rssi, snr)),
+        ResetColor
+    ).unwrap();
+}
 
-    loop {
-        let output = Command::new("/System/Library/PrivateFrameworks/Apple80211.framework/Versions/Current/Resources/airport")
-            .arg("-I")
-            .output()
-            .expect("failed");
+fn get_signal_info() -> (String, i32, i32) {
+    let output = Command::new("/System/Library/PrivateFrameworks/Apple80211.framework/Versions/Current/Resources/airport")
+        .arg("-I")
+        .output();
 
+    if let Ok(output) = output {
         let info = String::from_utf8_lossy(&output.stdout);
         let mut rssi = 0i32;
         let mut noise = 0i32;
@@ -37,52 +62,49 @@ pub fn signal() {
                 }
             }
         }
-
-        execute!(stdout, terminal::Clear(ClearType::All), cursor::MoveTo(0, 0)).unwrap();
-
-        if ssid.is_empty() {
-            execute!(stdout, SetForegroundColor(Color::DarkGrey), Print("not connected\n"), ResetColor).unwrap();
-        } else {
-            let snr = rssi - noise;
-            let bars = match rssi {
-                r if r >= -50 => "████",
-                r if r >= -60 => "███░",
-                r if r >= -70 => "██░░",
-                r if r >= -80 => "█░░░",
-                _ => "░░░░",
-            };
-            let color = match rssi {
-                r if r >= -50 => Color::Green,
-                r if r >= -70 => Color::Yellow,
-                _ => Color::Red,
-            };
-            execute!(
-                stdout,
-                SetForegroundColor(Color::Cyan),
-                Print(format!("{}\n\n", ssid)),
-                SetForegroundColor(color),
-                Print(format!("{} ", bars)),
-                ResetColor,
-                SetForegroundColor(Color::DarkGrey),
-                Print(format!("{}dBm\n", rssi)),
-                Print(format!("snr {}dB\n", snr)),
-                ResetColor
-            ).unwrap();
-        }
-
-        stdout.flush().unwrap();
-
-        if event::poll(std::time::Duration::from_secs(1)).unwrap() {
-            if let Event::Key(key) = event::read().unwrap() {
-                if matches!(key.code, KeyCode::Esc | KeyCode::Char('q')) {
-                    break;
-                }
-            }
+        if !ssid.is_empty() {
+            return (ssid, rssi, noise);
         }
     }
 
-    terminal::disable_raw_mode().unwrap();
-    execute!(stdout, terminal::Clear(ClearType::All), cursor::MoveTo(0, 0)).unwrap();
+    let output = Command::new("system_profiler")
+        .args(["SPAirPortDataType"])
+        .output();
+
+    if let Ok(output) = output {
+        let info = String::from_utf8_lossy(&output.stdout);
+        let mut ssid = String::new();
+        let mut rssi = 0i32;
+        let mut noise = 0i32;
+        let mut in_current = false;
+
+        for line in info.lines() {
+            if line.contains("Current Network Information:") {
+                in_current = true;
+                continue;
+            }
+            if in_current && ssid.is_empty() {
+                let name = line.trim().trim_end_matches(':');
+                if !name.is_empty() && !name.contains("Network Type") {
+                    ssid = name.to_string();
+                }
+            }
+            if line.contains("Signal / Noise:") {
+                let parts: Vec<&str> = line.split(':').collect();
+                if parts.len() == 2 {
+                    let vals: Vec<&str> = parts[1].split('/').collect();
+                    if vals.len() == 2 {
+                        rssi = vals[0].trim().replace(" dBm", "").parse().unwrap_or(0);
+                        noise = vals[1].trim().replace(" dBm", "").parse().unwrap_or(0);
+                    }
+                }
+                break;
+            }
+        }
+        return (ssid, rssi, noise);
+    }
+
+    (String::new(), 0, 0)
 }
 
 pub fn speed() {

@@ -10,20 +10,42 @@ use std::io::{self, Write};
 use std::process::Command;
 
 pub fn current() {
-    let output = Command::new("networksetup")
-        .args(["-getairportnetwork", "en0"])
-        .output()
-        .expect("failed");
-
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    if stdout.contains("not associated") {
-        style::dim("not connected\n");
-    } else if let Some(name) = stdout.strip_prefix("Current Wi-Fi Network: ") {
-        style::cyan(name.trim());
+    if let Some(name) = get_current_network() {
+        style::cyan(&name);
         println!();
     } else {
         style::dim("not connected\n");
     }
+}
+
+fn get_current_network() -> Option<String> {
+    let output = Command::new("networksetup")
+        .args(["-getairportnetwork", "en0"])
+        .output()
+        .ok()?;
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    if let Some(name) = stdout.strip_prefix("Current Wi-Fi Network: ") {
+        let name = name.trim();
+        if !name.is_empty() {
+            return Some(name.to_string());
+        }
+    }
+    let output = Command::new("system_profiler")
+        .args(["SPAirPortDataType"])
+        .output()
+        .ok()?;
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    for (i, line) in stdout.lines().enumerate() {
+        if line.contains("Current Network Information:") {
+            if let Some(next) = stdout.lines().nth(i + 1) {
+                let name = next.trim().trim_end_matches(':');
+                if !name.is_empty() && !name.contains("Network Type") {
+                    return Some(name.to_string());
+                }
+            }
+        }
+    }
+    None
 }
 
 pub fn list() {
@@ -162,20 +184,13 @@ pub fn on() {
 pub fn pass(name: Option<&str>) {
     let network = match name {
         Some(n) => n.to_string(),
-        None => {
-            let output = Command::new("networksetup")
-                .args(["-getairportnetwork", "en0"])
-                .output()
-                .expect("failed");
-            let stdout = String::from_utf8_lossy(&output.stdout);
-            match stdout.strip_prefix("Current Wi-Fi Network: ") {
-                Some(n) => n.trim().to_string(),
-                None => {
-                    style::dim("not connected\n");
-                    return;
-                }
+        None => match get_current_network() {
+            Some(n) => n,
+            None => {
+                style::dim("not connected\n");
+                return;
             }
-        }
+        },
     };
 
     let output = Command::new("security")
