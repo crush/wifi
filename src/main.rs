@@ -2,6 +2,16 @@ mod monitor;
 mod network;
 mod style;
 
+fn help() {
+    println!("wifi              current network");
+    println!("wifi list         select network");
+    println!("wifi pass [name]  show password");
+    println!("wifi signal       signal strength");
+    println!("wifi speed        speed test");
+    println!("wifi on/off       toggle wifi");
+    println!("wifi <name>       connect");
+}
+
 fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
 
@@ -13,6 +23,7 @@ fn main() {
         Some("speed") => monitor::speed(),
         Some("off") => network::off(),
         Some("on") => network::on(),
+        Some("-h" | "--help") => help(),
         Some(name) => network::connect(name),
     }
 }
