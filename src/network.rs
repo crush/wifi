@@ -1,9 +1,7 @@
-use crate::style;
 use crossterm::{
     cursor,
     event::{self, Event, KeyCode},
     execute,
-    style::{Color, Print, SetForegroundColor, ResetColor},
     terminal::{self, ClearType},
 };
 use std::io::{self, Write};
@@ -11,10 +9,9 @@ use std::process::Command;
 
 pub fn current() {
     if let Some(name) = get_current_network() {
-        style::cyan(&name);
-        println!();
+        println!("{}", name);
     } else {
-        style::dim("not connected\n");
+        println!("not connected");
     }
 }
 
@@ -58,7 +55,7 @@ pub fn list() {
     let lines: Vec<&str> = stdout.lines().collect();
 
     if lines.len() <= 1 {
-        style::dim("no networks\n");
+        println!("no networks");
         return;
     }
 
@@ -73,7 +70,7 @@ pub fn list() {
         .collect();
 
     if networks.is_empty() {
-        style::dim("no networks\n");
+        println!("no networks");
         return;
     }
 
@@ -86,19 +83,9 @@ pub fn list() {
 
         for (i, network) in networks.iter().enumerate() {
             if i == selected {
-                execute!(
-                    stdout,
-                    SetForegroundColor(Color::Cyan),
-                    Print(format!("  {}\n", network)),
-                    ResetColor
-                ).unwrap();
+                print!("> {}\r\n", network);
             } else {
-                execute!(
-                    stdout,
-                    SetForegroundColor(Color::DarkGrey),
-                    Print(format!("  {}\n", network)),
-                    ResetColor
-                ).unwrap();
+                print!("  {}\r\n", network);
             }
         }
 
@@ -139,7 +126,7 @@ pub fn connect(name: &str) {
     let stdout = String::from_utf8_lossy(&output.stdout);
 
     if stderr.contains("password") || stdout.contains("password") || !output.status.success() {
-        style::dim("password: ");
+        print!("password: ");
         io::stdout().flush().unwrap();
 
         let mut password = String::new();
@@ -152,16 +139,12 @@ pub fn connect(name: &str) {
             .expect("failed");
 
         if output.status.success() && output.stderr.is_empty() {
-            style::green("connected ");
-            style::cyan(name);
-            println!();
+            println!("connected {}", name);
         } else {
-            style::red("failed\n");
+            eprintln!("failed");
         }
     } else {
-        style::green("connected ");
-        style::cyan(name);
-        println!();
+        println!("connected {}", name);
     }
 }
 
@@ -170,7 +153,7 @@ pub fn off() {
         .args(["-setairportpower", "en0", "off"])
         .output()
         .expect("failed");
-    style::dim("off\n");
+    println!("off");
 }
 
 pub fn on() {
@@ -178,7 +161,7 @@ pub fn on() {
         .args(["-setairportpower", "en0", "on"])
         .output()
         .expect("failed");
-    style::green("on\n");
+    println!("on");
 }
 
 pub fn pass(name: Option<&str>) {
@@ -187,7 +170,7 @@ pub fn pass(name: Option<&str>) {
         None => match get_current_network() {
             Some(n) => n,
             None => {
-                style::dim("not connected\n");
+                println!("not connected");
                 return;
             }
         },
@@ -202,10 +185,9 @@ pub fn pass(name: Option<&str>) {
     for line in stderr.lines() {
         if let Some(pass) = line.strip_prefix("password: ") {
             let pass = pass.trim_matches('"');
-            style::cyan(pass);
-            println!();
+            println!("{}", pass);
             return;
         }
     }
-    style::dim("not found\n");
+    println!("not found");
 }

@@ -1,6 +1,5 @@
 mod monitor;
 mod network;
-mod style;
 
 fn help() {
     println!("wifi              current network");

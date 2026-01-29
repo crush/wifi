@@ -1,13 +1,10 @@
-use crate::style;
-use crossterm::{execute, style::{Color, Print, SetForegroundColor, ResetColor}};
-use std::io;
 use std::process::Command;
 
 pub fn signal() {
     let (ssid, rssi, noise) = get_signal_info();
 
     if ssid.is_empty() {
-        style::dim("not connected\n");
+        println!("not connected");
         return;
     }
 
@@ -20,22 +17,8 @@ pub fn signal() {
         _ => "░░░░",
     };
 
-    let mut stdout = io::stdout();
-    let color = match rssi {
-        r if r >= -50 => Color::Green,
-        r if r >= -70 => Color::Yellow,
-        _ => Color::Red,
-    };
-    execute!(
-        stdout,
-        SetForegroundColor(Color::Cyan),
-        Print(format!("{}\n", ssid)),
-        SetForegroundColor(color),
-        Print(format!("{} ", bars)),
-        SetForegroundColor(Color::DarkGrey),
-        Print(format!("{}dBm  snr {}dB\n", rssi, snr)),
-        ResetColor
-    ).unwrap();
+    println!("{}", ssid);
+    println!("{} {}dBm snr {}dB", bars, rssi, snr);
 }
 
 fn get_signal_info() -> (String, i32, i32) {
@@ -117,12 +100,5 @@ pub fn speed() {
     let elapsed = start.elapsed().as_secs_f64();
     let bytes: f64 = String::from_utf8_lossy(&output.stdout).parse().unwrap_or(0.0);
     let mbps = (bytes * 8.0) / (elapsed * 1_000_000.0);
-
-    let color = match mbps as i32 {
-        m if m >= 500 => style::green,
-        m if m >= 100 => style::cyan,
-        _ => style::dim,
-    };
-    color(&format!("{:.0}", mbps));
-    style::dim(" Mbps\n");
+    println!("{:.0} Mbps", mbps);
 }
