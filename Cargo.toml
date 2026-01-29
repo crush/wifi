@@ -1,0 +1,10 @@
+[package]
+name = "wifi"
+version = "0.1.0"
+edition = "2024"
+description = "wifi network manager for macos"
+license = "MIT"
+repository = "https://github.com/crush/wifi"
+
+[dependencies]
+crossterm = "0.28"
