@@ -1,3 +1,4 @@
+use crate::style;
 use crossterm::{
     cursor,
     event::{self, Event, KeyCode},
@@ -12,15 +13,16 @@ pub fn current() {
     let output = Command::new("networksetup")
         .args(["-getairportnetwork", "en0"])
         .output()
-        .expect("failed to get network");
+        .expect("failed");
 
     let stdout = String::from_utf8_lossy(&output.stdout);
     if stdout.contains("not associated") {
-        println!("not connected");
+        style::dim("not connected\n");
     } else if let Some(name) = stdout.strip_prefix("Current Wi-Fi Network: ") {
-        print!("{}", name.trim());
+        style::cyan(name.trim());
+        println!();
     } else {
-        println!("not connected");
+        style::dim("not connected\n");
     }
 }
 
@@ -28,13 +30,13 @@ pub fn list() {
     let output = Command::new("/System/Library/PrivateFrameworks/Apple80211.framework/Versions/Current/Resources/airport")
         .arg("-s")
         .output()
-        .expect("failed to scan networks");
+        .expect("failed");
 
     let stdout = String::from_utf8_lossy(&output.stdout);
     let lines: Vec<&str> = stdout.lines().collect();
 
     if lines.len() <= 1 {
-        println!("no networks found");
+        style::dim("no networks\n");
         return;
     }
 
@@ -49,7 +51,7 @@ pub fn list() {
         .collect();
 
     if networks.is_empty() {
-        println!("no networks found");
+        style::dim("no networks\n");
         return;
     }
 
@@ -65,11 +67,16 @@ pub fn list() {
                 execute!(
                     stdout,
                     SetForegroundColor(Color::Cyan),
-                    Print(format!("> {}\n", network)),
+                    Print(format!("  {}\n", network)),
                     ResetColor
                 ).unwrap();
             } else {
-                execute!(stdout, Print(format!("  {}\n", network))).unwrap();
+                execute!(
+                    stdout,
+                    SetForegroundColor(Color::DarkGrey),
+                    Print(format!("  {}\n", network)),
+                    ResetColor
+                ).unwrap();
             }
         }
 
@@ -104,13 +111,13 @@ pub fn connect(name: &str) {
     let output = Command::new("networksetup")
         .args(["-setairportnetwork", "en0", name])
         .output()
-        .expect("failed to connect");
+        .expect("failed");
 
     let stderr = String::from_utf8_lossy(&output.stderr);
     let stdout = String::from_utf8_lossy(&output.stdout);
 
     if stderr.contains("password") || stdout.contains("password") || !output.status.success() {
-        print!("password: ");
+        style::dim("password: ");
         io::stdout().flush().unwrap();
 
         let mut password = String::new();
@@ -120,15 +127,19 @@ pub fn connect(name: &str) {
         let output = Command::new("networksetup")
             .args(["-setairportnetwork", "en0", name, password])
             .output()
-            .expect("failed to connect");
+            .expect("failed");
 
         if output.status.success() && output.stderr.is_empty() {
-            println!("connected to {}", name);
+            style::green("connected ");
+            style::cyan(name);
+            println!();
         } else {
-            eprintln!("failed to connect");
+            style::red("failed\n");
         }
     } else {
-        println!("connected to {}", name);
+        style::green("connected ");
+        style::cyan(name);
+        println!();
     }
 }
 
@@ -136,16 +147,16 @@ pub fn off() {
     Command::new("networksetup")
         .args(["-setairportpower", "en0", "off"])
         .output()
-        .expect("failed to turn off wifi");
-    println!("wifi off");
+        .expect("failed");
+    style::dim("off\n");
 }
 
 pub fn on() {
     Command::new("networksetup")
         .args(["-setairportpower", "en0", "on"])
         .output()
-        .expect("failed to turn on wifi");
-    println!("wifi on");
+        .expect("failed");
+    style::green("on\n");
 }
 
 pub fn pass(name: Option<&str>) {
@@ -155,12 +166,12 @@ pub fn pass(name: Option<&str>) {
             let output = Command::new("networksetup")
                 .args(["-getairportnetwork", "en0"])
                 .output()
-                .expect("failed to get network");
+                .expect("failed");
             let stdout = String::from_utf8_lossy(&output.stdout);
             match stdout.strip_prefix("Current Wi-Fi Network: ") {
                 Some(n) => n.trim().to_string(),
                 None => {
-                    eprintln!("not connected");
+                    style::dim("not connected\n");
                     return;
                 }
             }
@@ -170,15 +181,16 @@ pub fn pass(name: Option<&str>) {
     let output = Command::new("security")
         .args(["find-generic-password", "-ga", &network])
         .output()
-        .expect("failed to get password");
+        .expect("failed");
 
     let stderr = String::from_utf8_lossy(&output.stderr);
     for line in stderr.lines() {
         if let Some(pass) = line.strip_prefix("password: ") {
             let pass = pass.trim_matches('"');
-            println!("{}", pass);
+            style::cyan(pass);
+            println!();
             return;
         }
     }
-    eprintln!("not found");
+    style::dim("not found\n");
 }

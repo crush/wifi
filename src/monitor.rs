@@ -1,3 +1,4 @@
+use crate::style;
 use crossterm::{
     cursor,
     event::{self, Event, KeyCode},
@@ -16,7 +17,7 @@ pub fn signal() {
         let output = Command::new("/System/Library/PrivateFrameworks/Apple80211.framework/Versions/Current/Resources/airport")
             .arg("-I")
             .output()
-            .expect("failed to get signal");
+            .expect("failed");
 
         let info = String::from_utf8_lossy(&output.stdout);
         let mut rssi = 0i32;
@@ -40,7 +41,7 @@ pub fn signal() {
         execute!(stdout, terminal::Clear(ClearType::All), cursor::MoveTo(0, 0)).unwrap();
 
         if ssid.is_empty() {
-            execute!(stdout, Print("not connected\n")).unwrap();
+            execute!(stdout, SetForegroundColor(Color::DarkGrey), Print("not connected\n"), ResetColor).unwrap();
         } else {
             let snr = rssi - noise;
             let bars = match rssi {
@@ -57,12 +58,15 @@ pub fn signal() {
             };
             execute!(
                 stdout,
+                SetForegroundColor(Color::Cyan),
                 Print(format!("{}\n\n", ssid)),
                 SetForegroundColor(color),
-                Print(format!("{} {}dBm\n", bars, rssi)),
+                Print(format!("{} ", bars)),
                 ResetColor,
-                Print(format!("noise {}dBm  snr {}dB\n", noise, snr)),
-                Print("\nq to quit")
+                SetForegroundColor(Color::DarkGrey),
+                Print(format!("{}dBm\n", rssi)),
+                Print(format!("snr {}dB\n", snr)),
+                ResetColor
             ).unwrap();
         }
 
@@ -91,5 +95,12 @@ pub fn speed() {
     let elapsed = start.elapsed().as_secs_f64();
     let bytes: f64 = String::from_utf8_lossy(&output.stdout).parse().unwrap_or(0.0);
     let mbps = (bytes * 8.0) / (elapsed * 1_000_000.0);
-    println!("{:.0} Mbps", mbps);
+
+    let color = match mbps as i32 {
+        m if m >= 500 => style::green,
+        m if m >= 100 => style::cyan,
+        _ => style::dim,
+    };
+    color(&format!("{:.0}", mbps));
+    style::dim(" Mbps\n");
 }
