@@ -6,34 +6,33 @@
 ```
 
 ```bash
-> what is this?
+> install?
 
-  a cli tool for managing wifi on macos
+  curl -fsSL raw.githubusercontent.com/crush/wifi/main/i | sh
+
+> usage?
+
+  wifi              show current network
+  wifi list         list networks (j/k to navigate, enter to connect)
+  wifi pass         show password for current network
+  wifi pass <name>  show password for specific network
+  wifi signal       live signal strength monitor
+  wifi speed        test download speed
+  wifi <name>       connect to network
+  wifi on           turn wifi on
+  wifi off          turn wifi off
 
 > features?
 
   ✓ show current network
   ✓ list available networks with interactive selection
   ✓ connect to networks with password support
+  ✓ retrieve saved wifi passwords from keychain
+  ✓ live signal strength monitor with bars
+  ✓ download speed test
   ✓ turn wifi on/off
-
-> usage?
-
-  wifi              show current network
-  wifi list         list networks (j/k to navigate, enter to connect)
-  wifi <name>       connect to network
-  wifi on           turn wifi on
-  wifi off          turn wifi off
-
-> install?
-
-  cargo install --git https://github.com/crush/wifi
 
 > stack?
 
-  rust · crossterm · networksetup
-```
-
-```
-made with /
+  rust · crossterm · networksetup · security
 ```
