@@ -8,14 +8,41 @@ use std::io::{self, Write};
 use std::process::Command;
 
 pub fn current() {
-    if let Some(name) = get_current_network() {
+    if let Some(name) = get_ssid_fast() {
         println!("{}", name);
+        return;
+    }
+    if let Some(ip) = get_ip() {
+        println!("{}", ip);
     } else {
         println!("not connected");
     }
 }
 
-fn get_current_network() -> Option<String> {
+pub fn name() {
+    if let Some(name) = get_ssid_fast() {
+        println!("{}", name);
+        return;
+    }
+    if let Some(name) = get_ssid_slow() {
+        println!("{}", name);
+    } else if get_ip().is_some() {
+        println!("connected");
+    } else {
+        println!("not connected");
+    }
+}
+
+fn get_ip() -> Option<String> {
+    let output = Command::new("ipconfig")
+        .args(["getifaddr", "en0"])
+        .output()
+        .ok()?;
+    let ip = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    if ip.is_empty() { None } else { Some(ip) }
+}
+
+fn get_ssid_fast() -> Option<String> {
     let output = Command::new("networksetup")
         .args(["-getairportnetwork", "en0"])
         .output()
@@ -27,6 +54,10 @@ fn get_current_network() -> Option<String> {
             return Some(name.to_string());
         }
     }
+    None
+}
+
+fn get_ssid_slow() -> Option<String> {
     let output = Command::new("system_profiler")
         .args(["SPAirPortDataType"])
         .output()
@@ -43,6 +74,10 @@ fn get_current_network() -> Option<String> {
         }
     }
     None
+}
+
+fn get_current_network() -> Option<String> {
+    get_ssid_fast().or_else(get_ssid_slow)
 }
 
 pub fn list() {

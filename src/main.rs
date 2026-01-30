@@ -2,7 +2,8 @@ mod monitor;
 mod network;
 
 fn help() {
-    println!("wifi              current network");
+    println!("wifi              status (ip or ssid)");
+    println!("wifi name         network name (slow)");
     println!("wifi list         select network");
     println!("wifi pass [name]  show password");
     println!("wifi signal       signal strength");
@@ -16,6 +17,7 @@ fn main() {
 
     match args.first().map(|s| s.as_str()) {
         None => network::current(),
+        Some("name") => network::name(),
         Some("list") => network::list(),
         Some("pass") => network::pass(args.get(1).map(|s| s.as_str())),
         Some("signal") => monitor::signal(),
